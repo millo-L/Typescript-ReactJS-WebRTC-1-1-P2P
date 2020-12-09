@@ -14,3 +14,6 @@ cd web
 npm install
 npm start
 ```
+
+### Next Upload is...
+- 1:N communication (peer to peer)
