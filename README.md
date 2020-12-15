@@ -16,4 +16,4 @@ npm start
 ```
 
 ### Next Upload is...
-- 1:N communication (peer to peer)
+- 1:N communication (peer to peer) https://github.com/Seung3837/Typescript-react-webrtc-1-N
