@@ -25,7 +25,7 @@ const App = () => {
   }
   
   useEffect(() => {
-    let newSocket = io.connect('http://localhost:9001');
+    let newSocket = io.connect('http://localhost:8080');
     let newPC = new RTCPeerConnection(pc_config);
 
     newSocket.on('all_users', (allUsers: Array<{id: string, email: string}>) => {
