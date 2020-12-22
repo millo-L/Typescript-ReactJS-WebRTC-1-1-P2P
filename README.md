@@ -19,7 +19,7 @@ You need to install Node.js
 ```sh
 cd Typescript-react-webrtc-1-1
 npm install
-node server.js
+node index.js
 cd web
 npm install
 npm start
