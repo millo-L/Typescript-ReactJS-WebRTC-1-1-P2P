@@ -13,7 +13,7 @@ let users = {};
 
 let socketToRoom = {};
 
-const maximum = 4;
+const maximum = 2;
 
 io.on('connection', socket => {
     socket.on('join_room', data => {
@@ -28,6 +28,8 @@ io.on('connection', socket => {
             users[data.room] = [{id: socket.id, email: data.email}];
         }
         socketToRoom[socket.id] = data.room;
+
+        socket.join(data.room);
         console.log(`[${socketToRoom[socket.id]}]: ${socket.id} enter`);
 
         const usersInThisRoom = users[data.room].filter(user => user.id !== socket.id);
@@ -38,17 +40,17 @@ io.on('connection', socket => {
     });
 
     socket.on('offer', sdp => {
-        console.log(sdp);
+        console.log('offer: ' + socket.id);
         socket.broadcast.emit('getOffer', sdp);
     });
 
     socket.on('answer', sdp => {
-        console.log(sdp);
+        console.log('answer: ' + socket.id);
         socket.broadcast.emit('getAnswer', sdp);
     });
 
     socket.on('candidate', candidate => {
-        console.log(candidate);
+        console.log('candidate: ' + socket.id);
         socket.broadcast.emit('getCandidate', candidate);
     })
 
@@ -59,6 +61,10 @@ io.on('connection', socket => {
         if (room) {
             room = room.filter(user => user.id !== socket.id);
             users[roomID] = room;
+            if (room.length === 0) {
+                delete users[roomID];
+                return;
+            }
         }
         socket.broadcast.to(room).emit('user_exit', {id: socket.id});
         console.log(users);
