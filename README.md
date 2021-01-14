@@ -17,7 +17,7 @@ docker-compose up -d
 ### 2. Non-Docker version(Node.js and React.js)
 You need to install Node.js
 ```sh
-cd Typescript-react-webrtc-1-1
+cd Typescript-ReactJS-WebRTC-1-1-P2P
 npm install
 node index.js
 cd web
