@@ -30,3 +30,4 @@ npm start
 
 ### Next Upload is...
 - 1:N communication (peer to peer) https://github.com/Seung3837/Typescript-react-webrtc-1-N
+- 1:N communication (SFU Server as a MediaServer) https://github.com/Seung3837/Typescript-ReactJS-WebRTC-1-N-SFU
