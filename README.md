@@ -26,7 +26,7 @@ npm start
 ```
 
 ### More Details...
-- https://velog.io/@seung3837/WebRTC-%EA%B5%AC%ED%98%84%ED%95%98%EA%B8%B011-P2P
+- https://surprisecomputer.tistory.com/9
 
 ### Next Upload is...
 - 1:N communication (peer to peer) https://github.com/Seung3837/Typescript-react-webrtc-1-N
