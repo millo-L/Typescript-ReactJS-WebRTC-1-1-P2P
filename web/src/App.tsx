@@ -1,113 +1,134 @@
 import React, { useEffect, useRef } from "react";
 import io from "socket.io-client";
 
-const App = () => {
-  const socket = io.connect("http://localhost:8080");
+const pc_config = {
+  iceServers: [
+    // {
+    //   urls: 'stun:[STUN_IP]:[PORT]',
+    //   'credentials': '[YOR CREDENTIALS]',
+    //   'username': '[USERNAME]'
+    // },
+    {
+      urls: "stun:stun.l.google.com:19302",
+    },
+  ],
+};
+const SOCKET_SERVER_URL = "http://localhost:8080";
 
+const App = () => {
+  const socketRef = useRef<SocketIOClient.Socket>();
+  const pcRef = useRef<RTCPeerConnection>();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  const pc_config = {
-    iceServers: [
-      // {
-      //   urls: 'stun:[STUN_IP]:[PORT]',
-      //   'credentials': '[YOR CREDENTIALS]',
-      //   'username': '[USERNAME]'
-      // },
-      {
-        urls: "stun:stun.l.google.com:19302",
-      },
-    ],
+  const setVideoTracks = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      if (!(pcRef.current && socketRef.current)) return;
+      stream.getTracks().forEach((track) => {
+        if (!pcRef.current) return;
+        pcRef.current.addTrack(track, stream);
+      });
+      pcRef.current.onicecandidate = (e) => {
+        if (e.candidate) {
+          if (!socketRef.current) return;
+          console.log("onicecandidate");
+          socketRef.current.emit("candidate", e.candidate);
+        }
+      };
+      pcRef.current.oniceconnectionstatechange = (e) => {
+        console.log(e);
+      };
+      pcRef.current.ontrack = (ev) => {
+        console.log("add remotetrack success");
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = ev.streams[0];
+        }
+      };
+      socketRef.current.emit("join_room", {
+        room: "1234",
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const createOffer = async () => {
+    console.log("create offer");
+    if (!(pcRef.current && socketRef.current)) return;
+    try {
+      const sdp = await pcRef.current.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      await pcRef.current.setLocalDescription(new RTCSessionDescription(sdp));
+      socketRef.current.emit("offer", sdp);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const createAnswer = async (sdp: RTCSessionDescription) => {
+    if (!(pcRef.current && socketRef.current)) return;
+    try {
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+      console.log("answer set remote description success");
+      const mySdp = await pcRef.current.createAnswer({
+        offerToReceiveVideo: true,
+        offerToReceiveAudio: true,
+      });
+      console.log("create answer");
+      await pcRef.current.setLocalDescription(new RTCSessionDescription(mySdp));
+      socketRef.current.emit("answer", mySdp);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => {
-    const newPC = new RTCPeerConnection(pc_config);
+    socketRef.current = io.connect(SOCKET_SERVER_URL);
+    pcRef.current = new RTCPeerConnection(pc_config);
 
-    socket.on("all_users", (allUsers: Array<{ id: string; email: string }>) => {
+    socketRef.current.on("all_users", (allUsers: Array<{ id: string }>) => {
       if (allUsers.length > 0) {
         createOffer();
       }
     });
 
-    socket.on("getOffer", (sdp: RTCSessionDescription) => {
+    socketRef.current.on("getOffer", (sdp: RTCSessionDescription) => {
       //console.log(sdp);
       console.log("get offer");
       createAnswer(sdp);
     });
 
-    socket.on("getAnswer", (sdp: RTCSessionDescription) => {
+    socketRef.current.on("getAnswer", (sdp: RTCSessionDescription) => {
       console.log("get answer");
-      newPC.setRemoteDescription(new RTCSessionDescription(sdp));
+      if (!pcRef.current) return;
+      pcRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
       //console.log(sdp);
     });
 
-    socket.on("getCandidate", (candidate: RTCIceCandidateInit) => {
-      newPC.addIceCandidate(new RTCIceCandidate(candidate)).then(() => {
+    socketRef.current.on(
+      "getCandidate",
+      async (candidate: RTCIceCandidateInit) => {
+        if (!pcRef.current) return;
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
         console.log("candidate add success");
-      });
-    });
-
-    navigator.mediaDevices
-      .getUserMedia({
-        video: true,
-        audio: true,
-      })
-      .then((stream) => {
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-
-        stream.getTracks().forEach((track) => {
-          newPC.addTrack(track, stream);
-        });
-        newPC.onicecandidate = (e) => {
-          if (e.candidate) {
-            console.log("onicecandidate");
-            socket.emit("candidate", e.candidate);
-          }
-        };
-        newPC.oniceconnectionstatechange = (e) => {
-          console.log(e);
-        };
-
-        newPC.ontrack = (ev) => {
-          console.log("add remotetrack success");
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = ev.streams[0];
-          }
-        };
-
-        socket.emit("join_room", { room: "1234", email: "sample@naver.com" });
-      })
-      .catch((error) => {
-        console.log(`getUserMedia error: ${error}`);
-      });
-
-    const createOffer = async () => {
-      console.log("create offer");
-      try {
-        const sdp = await newPC.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-        });
-        await newPC.setLocalDescription(new RTCSessionDescription(sdp));
-        socket.emit("offer", sdp);
-      } catch (e) {
-        console.error(e);
       }
-    };
+    );
 
-    const createAnswer = async (sdp: RTCSessionDescription) => {
-      try {
-        await newPC.setRemoteDescription(new RTCSessionDescription(sdp));
-        console.log("answer set remote description success");
-        const mySdp = await newPC.createAnswer({
-          offerToReceiveVideo: true,
-          offerToReceiveAudio: true,
-        });
-        console.log("create answer");
-        await newPC.setLocalDescription(new RTCSessionDescription(mySdp));
-        socket.emit("answer", mySdp);
-      } catch (e) {
-        console.error(e);
+    setVideoTracks();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      if (pcRef.current) {
+        pcRef.current.close();
       }
     };
   }, []);
